@@ -8,14 +8,18 @@
 #include <linux/i2c-dev.h>
 #include <sys/ioctl.h>
 #include <stdarg.h>
-#include <poll.h>
 #include <errno.h>
 
-const char *raw_filename = "raw_data";
+#define ACCEL   0x3b
+#define TEMP    0x41
+#define GYRO    0x43
+#define MAX     0xFFFF
+
+const char *filtname = "filtered_data";
+const char *rawname = "raw_data";
 const char *filename = "/dev/i2c-1";
 int DEBUG = 0;
 int ADDRESS = 0x68;
-struct pollfd pfd;
 
 void debug(const char* format, ...)
 {
@@ -60,63 +64,122 @@ int open_file(const char *filename)
     return fd;
 }
 
-int8_t read_value(int fd)
+FILE *fopen_file(const char *filename)
 {
-    debug("Reading from %d\n", fd);
+    FILE *file;
 
-    int8_t num;
-    char *p = (char *)&num;
-    ssize_t size = sizeof(int8_t);
-    ssize_t r = 0;
+    if ((file = fopen(filename, "w")) == NULL)
+        error_handler("fopen_file | fopen");
+
+    return file;
+}
+
+void write_reg(int fd, int8_t reg)
+{
+    char *p = (char *)&reg;
+
+    if (write(fd, p, 1) == -1)
+        error_handler("write_reg | write");
+}
+
+void read_values(int fd, int8_t *buff, int size)
+{
+    char *p = (char *)buff;
+    int r;
 
     while (size > 0)
     {
         if ((r = read(fd, p, size)) == -1)
-            error_handler("read_value | read");
+            error_handler("read_values | read");
 
-        size -= r;
         p += r;
+        size -= r;
     }
-
-    return num;
 }
 
-void command(uint16_t reg, int fd)
+void thermometer(int fd, int16_t *temp)
 {
-    debug("Writing to %d\n", fd);
+    int8_t buff[2];
 
-    unsigned char reg_buf[2];
-    ssize_t w = 0;
-    ssize_t size = sizeof(unsigned char)*2;
+    write_reg(fd, TEMP);
+    read_values(fd, buff, 2);
 
-    reg_buf[0] = (reg >> 0) & 0xFF;
-    reg_buf[1] = (reg >> 8) & 0xFF;
-
-    if ((w = write(fd, reg_buf, size)) == -1)
-        error_handler("command | write");
+    *temp = (buff[0] << 8) + buff[1];
 }
 
-void read_data_from_imu(struct pollfd *pfd)
+void accelerometer(int fd, int16_t *x, int16_t *y, int16_t *z)
 {
-    int8_t val;
-    int p;
+    int8_t buff[6];
 
-    for (;;)
+    write_reg(fd, ACCEL);
+    read_values(fd, buff, 6);
+
+    *x = (buff[0] << 8) + buff[1];
+    *y = (buff[2] << 8) + buff[3];
+    *z = (buff[4] << 8) + buff[5];
+}
+
+void gyroscope(int fd, int16_t *x, int16_t *y, int16_t *z)
+{
+    int8_t buff[6];
+
+    write_reg(fd, GYRO);
+    read_values(fd, buff, 6);
+
+    *x = (buff[0] << 8) + buff[1];
+    *y = (buff[2] << 8) + buff[3];
+    *z = (buff[4] << 8) + buff[5];
+}
+
+void dump_data(FILE *output, int16_t x, int16_t y, int16_t z, int flag)
+{
+    if (fprintf(output, "%d, %d, %d", x, y, z) < 0)
+        error_handler("dump_data | fprintf");
+    if (fprintf(output, "%c", (flag == 0 ? '\n' : ',')) < 0)
+        error_handler("dump_data | fprintf");
+}
+
+void read_data_from_imu(int fd, FILE *raw, FILE *filt)
+{
+    int i;
+
+    int16_t raw_x_acc, raw_y_acc, raw_z_acc;
+    int16_t raw_x_gyro, raw_y_gyro, raw_z_gyro;
+//    int16_t raw_temp;
+
+    int16_t filt_x_acc, filt_y_acc, filt_z_acc;
+    int16_t filt_x_gyro, filt_y_gyro, filt_z_gyro;
+//    int16_t filt_temp;
+
+    int sum_x_acc, sum_y_acc, sum_z_acc;
+    int sum_x_gyro, sum_y_gyro, sum_z_gyro;
+
+    sum_x_acc = sum_y_acc = sum_z_acc = 0;
+    sum_x_gyro = sum_y_gyro = sum_z_gyro = 0;
+
+    for (i = 1; i < MAX; i++)
     {
-        command(0x3b, pfd->fd);
+        accelerometer(fd, &raw_x_acc, &raw_y_acc, &raw_z_acc);
+        gyroscope(fd, &raw_x_gyro, &raw_y_gyro, &raw_z_gyro);
+        dump_data(raw, raw_x_acc, raw_y_acc, raw_z_acc, 1);
+        dump_data(raw, raw_x_gyro, raw_y_gyro, raw_z_gyro, 0);
 
-        switch (p = poll(pfd, 1, 100))
-        {
-            case -1:
-                error_handler("read_data_from_imu | poll");
-            case 0:
-                fprintf(stderr, "Timeout expired\n");
-                break;
-            default:
-                val = read_value(pfd->fd);
-                printf("Read: %u\n", val);
-                break;
-        }
+        sum_x_acc += raw_x_acc;
+        sum_y_acc += raw_y_acc;
+        sum_z_acc += raw_z_acc;
+        sum_x_gyro += raw_x_gyro;
+        sum_y_gyro += raw_y_gyro;
+        sum_z_gyro += raw_z_gyro;
+
+        filt_x_acc = sum_x_acc/i;
+        filt_y_acc = sum_y_acc/i;
+        filt_z_acc = sum_z_acc/i;
+        filt_x_gyro = sum_x_gyro/i;
+        filt_y_gyro = sum_y_gyro/i;
+        filt_z_gyro = sum_z_gyro/i;
+
+        dump_data(filt, filt_x_acc, filt_y_acc, filt_z_acc, 1);
+        dump_data(filt, filt_x_gyro, filt_y_gyro, filt_z_gyro, 0);
     }
 }
 
@@ -127,16 +190,20 @@ int main(int argc, const char **argv)
         fprintf(stderr, "Usage: %s debug_flag\n", argv[0]);
         return EXIT_FAILURE;
     }
+
+    int fd;
+    FILE *raw_data, *filt_data;
     
     set_debug(argv[1]);
-
-    pfd.fd = open_file(filename);
+    fd = open_file(filename);
+    raw_data = fopen_file(rawname);
+    filt_data = fopen_file(filtname);
     
     debug("Setting slave address\n");
-    if (ioctl(pfd.fd, I2C_SLAVE, ADDRESS) == -1)
+    if (ioctl(fd, I2C_SLAVE, ADDRESS) == -1)
         error_handler("main | ioctl");
 
-    read_data_from_imu(&pfd);
+    read_data_from_imu(fd, raw_data, filt_data);
 
     return EXIT_SUCCESS;
 }
