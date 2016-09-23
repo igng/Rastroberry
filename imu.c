@@ -55,6 +55,7 @@ void set_debug(const char *deb_lev)
 
 int open_file(const char *filename)
 {
+    debug("Opening \"%s\"\n", filename);
     int fd;
     
     if ((fd = open(filename, O_RDWR)) == -1)
@@ -66,6 +67,7 @@ int open_file(const char *filename)
 
 FILE *fopen_file(const char *filename)
 {
+    debug("Opening \"%s\"\n", filename);
     FILE *file;
 
     if ((file = fopen(filename, "w")) == NULL)
@@ -76,6 +78,7 @@ FILE *fopen_file(const char *filename)
 
 void write_reg(int fd, int8_t reg)
 {
+    debug("Asking for register %x\n", reg);
     char *p = (char *)&reg;
 
     if (write(fd, p, 1) == -1)
@@ -99,6 +102,7 @@ void read_values(int fd, int8_t *buff, int size)
 
 void thermometer(int fd, int16_t *temp)
 {
+    debug("Thermometer\n");
     int8_t buff[2];
 
     write_reg(fd, TEMP);
@@ -109,6 +113,7 @@ void thermometer(int fd, int16_t *temp)
 
 void accelerometer(int fd, int16_t *x, int16_t *y, int16_t *z)
 {
+    debug("Accelerometer\n");
     int8_t buff[6];
 
     write_reg(fd, ACCEL);
@@ -121,6 +126,7 @@ void accelerometer(int fd, int16_t *x, int16_t *y, int16_t *z)
 
 void gyroscope(int fd, int16_t *x, int16_t *y, int16_t *z)
 {
+    debug("Gyroscope\n");
     int8_t buff[6];
 
     write_reg(fd, GYRO);
@@ -133,6 +139,7 @@ void gyroscope(int fd, int16_t *x, int16_t *y, int16_t *z)
 
 void dump_data(FILE *output, int16_t x, int16_t y, int16_t z, int flag)
 {
+    debug("Dumping data\n)");
     if (fprintf(output, "%d, %d, %d", x, y, z) < 0)
         error_handler("dump_data | fprintf");
     if (fprintf(output, "%c", (flag == 0 ? '\n' : ',')) < 0)
