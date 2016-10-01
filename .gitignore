@@ -1,21 +1,6 @@
-# Binary files
+# Random files
 *
 !*.*
-
-# Object files
-*.o
-
-# Libraries
-*.lib
-*.a
-*.la
-*.lo
-
-# Shared objects (inc. Windows DLLs)
-*.dll
-*.so
-*.so.*
-*.dylib
 
 # Text files
 *.txt
