@@ -97,7 +97,7 @@ for i = 3:max_size
     if (flag(2))
         set(rgx, 'XData', t, 'YData', raw_x_gyro);
         set(rgy, 'XData', t, 'YData', raw_y_gyro);
-        set(rgz, 'XData', t, 'YData', raw_z_gyro);
+        set(rgz, 'XData', t, 'YData', raw_z_gyroc);
     end
     % Temperature
     if (flag(3))

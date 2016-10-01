@@ -23,3 +23,5 @@
 # PDF files
 *.pdf
 
+# SLX files
+*.slx
