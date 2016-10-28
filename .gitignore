@@ -1,6 +1,5 @@
 # Random files
 *
-de*
 !*.*
 
 # Text files
@@ -11,3 +10,9 @@ de*
 
 # SLX files
 *.slx
+
+# Data files
+Leap_Second.dat
+de421.bsp
+deltat.data
+deltat.preds
