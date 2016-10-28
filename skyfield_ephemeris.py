@@ -1,4 +1,3 @@
-import pip
 import time
 import datetime
 from pprint import pprint
@@ -40,7 +39,7 @@ def select_planets():
                 selected.remove(selected[i])
         if (len(selected) < 1):
             print("     # WARNING: there is no object to track!\n")
-    print("Selected (before): ", selected)
+    print("Tracking the following planets: ", [elem for elem in selected])
     selected = [selected[i] + " barycenter" for i in range(len(selected))]
 
 def validate(string):
@@ -72,11 +71,11 @@ def time_selection():
     end_time = ""
     while (v == 0):
         while (not validate(start_time)):
-            start_time = input("Select the starting time of observation (default is now (NOT RECCOMANDED): ")
+            start_time = input("Select the starting time of observation (default is now (NOT RECCOMANDED)): ")
             if (start_time == ""):
                 start_time = datetime.datetime.strftime(datetime.datetime.today(), '%Y-%m-%d %H:%M:%S')
         while (not validate(end_time)):
-            end_time = input("Select the ending time of observation (default is now (NOT RECCOMANDED): ")
+            end_time = input("Select the ending time of observation (default is now (NOT RECCOMANDED)): ")
             if (end_time == ""):
                 end_time = datetime.datetime.strftime(datetime.datetime.today(), '%Y-%m-%d %H:%M:%S')
         s_time = datetime.datetime.strptime(start_time, '%Y-%m-%d %H:%M:%S')
@@ -95,13 +94,28 @@ def time_selection():
     time_span = ts.utc(s_y, s_m, s_d, s_h, s_mm, range(1, diff))
     print("\nGreat Scott! Martin get the car ready, we're going to the future!\n")
 
+def valid_coordinates(latitude, longitude):
+    latitude = latitude.split(" ")
+    [lat_val, lat_dir] = [float(latitude[0]), latitude[1].upper()]
+    longitude = longitude.split(" ")
+    [lon_val, lon_dir] = [float(longitude[0]), longitude[1].upper()]
+    if (lat_val < 0 or lat_val > 90 or (lat_dir != "N" and lat_dir != "S")):
+        return 0
+    if (lon_val < 0 or lon_val > 180 or (lon_dir != "E" and lon_dir != "W")):
+        return 0
+    return 1
+
 def location_selection():
+    global home
     print("Insert the point of observation")
-    print("(The use of non-valid coordinate will result in the use of the default ones (Earth's barycenter)")
+    print("(The use of non-valid coordinates will result in the use of the default ones (Earth's barycenter))")
     latitude = input("Latitude (e.g. 42 N): ")
     longitude = input("Longitude (e.g. 42 E): ")
     if (valid_coordinates(latitude, longitude)):
         home = planets['earth'].topos(latitude, longitude)
+    else:
+        print("Invalid coordinates; using the Earth's barycenter")
+    print(home)
 
 def dump_ephemeris():
     time = time_span.utc
