@@ -24,10 +24,9 @@ def select_planets():
     selected = [];
     while (len(selected) < 1):
         selected = input("Select the planets that you want to observe: ")
-        selected = selected.replace(" ", "")
-        selected = list(set(selected.split(",")))
-        for i in range(len(selected)):
-            selected[i] = selected[i].strip().lower()
+        selected = selected.replace(" ", "").split(",")
+        selected = [selected[i].strip().lower() for i in range(len(selected))]
+        selected = list(set(selected))
         if "earth" in selected:
             print("\tYou can't observe the Earth (yet); you have to wait that Elon bring us on Mars")
             selected.remove('earth')
@@ -68,10 +67,9 @@ def parse_date(time_string):
 
 def check_scale(scale):
     scale = re.split('(\d+)', scale)[1::]
-    print(scale)
     if (len(scale) == 2):
-        if (scale[1].lower() != 's' and scale[1].lower() != 'm' and scale[1].lower() != 'h'):
-            print("Please, use one of the following format \"h = hours; m = minutes; s = seconds")
+        if (scale[1].lower() != 's' and scale[1].lower() != 'm' and scale[1].lower() != 'h' and scale[1].lower() != 'd'):
+            print("Please, use one of the following format \"d = days; h = hours; m = minutes; s = seconds")
             print(scale)
             return 0
         if (not scale[0].isdigit()):
@@ -88,8 +86,10 @@ def parse_scale(scale):
         num = 1
     elif (scale[1].lower() == 'm'):
         num = 60
-    else:
+    elif (scale[1].lower() == 'h'):
         num = 3600
+    else:
+        num = 3600*24
     return (num * int(scale[0]))
 
 def time_selection():
@@ -100,11 +100,11 @@ def time_selection():
     scale = ""
     while (v == 0):
         while (not validate(start_time)):
-            start_time = input("Select the starting time of observation (default is now (NOT RECCOMANDED)): ")
+            start_time = input("Select the starting time of observation (default is now (NOT RECOMMENDED)): ")
             if (start_time == ""):
                 start_time = datetime.datetime.strftime(datetime.datetime.today(), '%Y-%m-%d %H:%M:%S')
         while (not validate(end_time)):
-            end_time = input("Select the ending time of observation (default is now (NOT RECCOMANDED)): ")
+            end_time = input("Select the ending time of observation (default is now (NOT RECOMMENDED)): ")
             if (end_time == ""):
                 end_time = datetime.datetime.strftime(datetime.datetime.today(), '%Y-%m-%d %H:%M:%S')
         s_time = datetime.datetime.strptime(start_time, '%Y-%m-%d %H:%M:%S')
@@ -112,7 +112,7 @@ def time_selection():
         print("\n\nS:", start_time)
         print("E:", end_time)
         global diff
-        diff = (e_time - s_time).seconds
+        diff = int((e_time - s_time).total_seconds())
         v = 1 if diff > 0 else 0
         if (v == 0):
             print("Martin, you know that we can no more travel back in time!")
