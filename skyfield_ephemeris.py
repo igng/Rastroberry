@@ -1,3 +1,4 @@
+import re
 import time
 import datetime
 from pprint import pprint
@@ -65,10 +66,38 @@ def parse_date(time_string):
     seconds = t_split[2]
     return [year, month, day, hours, minutes, seconds]
 
+def check_scale(scale):
+    scale = re.split('(\d+)', scale)[1::]
+    print(scale)
+    if (len(scale) == 2):
+        if (scale[1].lower() != 's' and scale[1].lower() != 'm' and scale[1].lower() != 'h'):
+            print("Please, use one of the following format \"h = hours; m = minutes; s = seconds")
+            print(scale)
+            return 0
+        if (not scale[0].isdigit()):
+            print("Bad string format")
+            print(scale)
+            return 0
+        return 1
+    else:
+        return 0
+
+def parse_scale(scale):
+    scale = re.split('(\d+)', scale)[1::]
+    if (scale[1].lower() == 's'):
+        num = 1
+    elif (scale[1].lower() == 'm'):
+        num = 60
+    else:
+        num = 3600
+    return (num * int(scale[0]))
+
 def time_selection():
     v = 0
     start_time = ""
     end_time = ""
+    global scale
+    scale = ""
     while (v == 0):
         while (not validate(start_time)):
             start_time = input("Select the starting time of observation (default is now (NOT RECCOMANDED)): ")
@@ -89,15 +118,27 @@ def time_selection():
             print("Martin, you know that we can no more travel back in time!")
             start_time = ""
             end_time = ""
+    while (not check_scale(scale)):
+        scale = input("Please, insert the scale of the observation (e.g. every 5 minutes = 5m): ")
+    scale = parse_scale(scale)
     [s_y, s_m, s_d, s_h, s_mm, s_ss] = parse_date(start_time)
     global time_span
-    time_span = ts.utc(s_y, s_m, s_d, s_h, s_mm, range(1, diff))
+    print("Updating every",scale,"seconds");
+    time_span = ts.utc(s_y, s_m, s_d, s_h, s_mm, range(0, diff, scale))
     print("\nGreat Scott! Martin get the car ready, we're going to the future!\n")
 
-def valid_coordinates(latitude, longitude):
+def validate_coordinates(latitude, longitude):
     latitude = latitude.split(" ")
+    if (len(latitude) != 2):
+        return 0
+    if (not (latitude[0].isdigit() and latitude[1].isalpha())):
+        return 0
     [lat_val, lat_dir] = [float(latitude[0]), latitude[1].upper()]
     longitude = longitude.split(" ")
+    if (len(longitude) != 2):
+        return 0
+    if (not (longitude[0].isdigit() and longitude[1].isalpha())):
+        return 0
     [lon_val, lon_dir] = [float(longitude[0]), longitude[1].upper()]
     if (lat_val < 0 or lat_val > 90 or (lat_dir != "N" and lat_dir != "S")):
         return 0
@@ -111,20 +152,13 @@ def location_selection():
     print("(The use of non-valid coordinates will result in the use of the default ones (Earth's barycenter))")
     latitude = input("Latitude (e.g. 42 N): ")
     longitude = input("Longitude (e.g. 42 E): ")
-    if (valid_coordinates(latitude, longitude)):
+    if (validate_coordinates(latitude, longitude)):
         home = planets['earth'].topos(latitude, longitude)
     else:
         print("Invalid coordinates; using the Earth's barycenter")
-    print(home)
 
 def dump_ephemeris():
-    time = time_span.utc
-    year = [int(x) for x in time[0]]
-    month = [int(x) for x in time[1]]
-    day = [int(x) for x in time[2]]
-    hour = [int(x) for x in time[3]]
-    minute = [int(x) for x in time[4]]
-    second = [int(round(x)) for x in time[5]]
+    time = time_span.utc_strftime('%Y-%m-%d %H:%M:%S')
     for planet in selected:
         astrometric = home.at(time_span).observe(planets[planet])
         filename = planet.split(" ")[0] + ".txt"
@@ -133,10 +167,9 @@ def dump_ephemeris():
         ra_arr = ra.hms()
         de_arr = dec.dms()
         print("\tDumping \"" + filename + "\"")
-        for i in range(diff-1):
-            timestamp = str(year[i]) + "-" + str(month[i]).zfill(2) + "-" + str(day[i]).zfill(2) + " " + str(hour[i]).zfill(2) + ":" + str(minute[i]).zfill(2) + ":" + str(second[i]).zfill(2) + "\t"
+        for i in range(round(diff/scale) - 1):
             coords = str(ra_arr[0][i]) + ", " + str(ra_arr[1][i]) + ", " + str(ra_arr[2][i]) + '\n'
-            f.write(timestamp + coords)
+            f.write(time[i] + "\t" + coords)
         f.close()
 
 def main():
